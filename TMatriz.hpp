@@ -5,6 +5,7 @@
 #pragma once
 #include <iostream>
 #include <vector>
+#include <cmath>
 
 template <typename T>
 class matriz
@@ -18,10 +19,16 @@ class matriz
 		std::size_t ncol();
 		std::size_t nrow();
 		T getElement(std::size_t i, std::size_t j);
-		matriz<T> getLine(std::size_t n);
+		matriz<T> getRow(std::size_t n);
 		matriz<T> getCol(std::size_t n);
+		matriz<T> subMatriz(std::size_t rMin, std::size_t rMax, std::size_t cMin, std::size_t cMax);
+		matriz<T> removeRow(std::size_t n);
+		matriz<T> removeCol(std::size_t n);
+		matriz<T> concRow(matriz<T> a, matriz<T> b);
+		matriz<T> concCol(matriz<T> a, matriz<T> b);
 		matriz<T> transpose();
 		T determinant();	
+		T detRecursive(matriz<T> a);
 		void print();
 		
 		//Operadores
@@ -63,9 +70,9 @@ T matriz<T>::getElement(std::size_t i, std::size_t j){
 	exit(1);
 }
 
-//-----------------	getLine -----------------//
+//-----------------	getRow -----------------//
 template <typename T>
-matriz<T> matriz<T>::getLine(std::size_t n){
+matriz<T> matriz<T>::getRow(std::size_t n){
 	if(n >= nrow_) {
 		std::cout << "Valor invalido!" << std::endl;
 		exit(1);
@@ -94,6 +101,92 @@ matriz<T> matriz<T>::getCol(std::size_t n){
 	return col;
 }
 
+//-----------------	subMatriz -----------------//
+template <typename T>
+matriz<T> matriz<T>::subMatriz(std::size_t rMin, std::size_t rMax, std::size_t cMin, std::size_t cMax){
+	if(rMin < 0 || rMax >= nrow_ || cMin < 0 || cMax >= ncol_) {
+		std::cout << "Valores incorretos de linha ou coluna!" << std::endl;
+		exit(1);
+	}
+	matriz<T> M(rMax - rMin + 1, cMax - cMin + 1, 0);
+	
+	for(std::size_t i = rMin; i <= rMax; i++)
+		for(std::size_t j = cMin; j <= cMax; j++)
+			M(i - rMin,j - cMin) = getElement(i,j);
+	
+	return M;
+}
+
+//-----------------	removeRow -----------------//
+template <typename T>
+matriz<T> matriz<T>::removeRow(std::size_t n){
+	if(n < 0 || n >= nrow_) {
+		std::cout << "Linha invalida!" << std::endl;
+		exit(1);
+	}
+	matriz<T> M(nrow_ -1, ncol_, 0);
+	for(std::size_t i = 0; i < nrow_ - 1; i++)
+		for(std::size_t j = 0; j < ncol_; j++){
+			if(i < n)
+				M(i,j) = getElement(i,j);
+			else
+				M(i,j) = getElement(i + 1,j);
+		}
+	return M;
+}
+//-----------------	removeCol -----------------//
+template <typename T>
+matriz<T> matriz<T>::removeCol(std::size_t n){
+	if(n < 0 || n >= ncol_) {
+		std::cout << "Coluna invalida!" << std::endl;
+		exit(1);
+	}
+	matriz<T> M(nrow_, ncol_ -1, 0);
+	for(std::size_t i = 0; i < nrow_; i++)
+		for(std::size_t j = 0; j < ncol_ -1; j++){
+			if(j < n)
+				M(i,j) = getElement(i,j);
+			else
+				M(i,j) = getElement(i,j + 1);
+		}
+	return M;
+	
+}
+//-----------------	concRow -----------------//
+template <typename T>
+matriz<T> matriz<T>::concRow(matriz<T> a, matriz<T> b){
+	if(a.ncol() != b.ncol()) {
+		std::cout << "Matrizes com ncol diferentes!" << std::endl;
+		exit(1);
+	}
+	matriz<T> M(a.nrow() + b.nrow(), a.ncol(), 0);
+	for(std::size_t i = 0; i < M.nrow(); i++)
+		for(std::size_t j = 0; j < M.ncol() -1; j++){
+			if(i < a.nrow())
+				M(i,j) = a.getElement(i,j);
+			else
+				M(i,j) = b.getElement(i - a.nrow(),j);
+		}
+	return M;
+}
+//-----------------	concCol -----------------//
+template <typename T>
+matriz<T> matriz<T>::concCol(matriz<T> a, matriz<T> b){
+	if(a.nrow() != b.nrow()) {
+		std::cout << "Matrizes com nrow diferentes!" << std::endl;
+		exit(1);
+	}
+	matriz<T> M(a.nrow(), a.ncol() + b.ncol(), 0);
+	for(std::size_t i = 0; i < M.nrow(); i++)
+		for(std::size_t j = 0; j < M.ncol() -1; j++){
+			if(j < a.ncol())
+				M(i,j) = a.getElement(i,j);
+			else
+				M(i,j) = b.getElement(i,j - a.ncol());
+		}
+	return M;	
+}
+		
 //-----------------	transpose -----------------//
 template <typename T>
 matriz<T> matriz<T>::transpose(){
@@ -112,14 +205,35 @@ T matriz<T>::determinant(){
 		std::cout << "Erro ao calcular determinante!\nMatrizes não é quadrada!" << std::endl;
 		exit(1);
 	}
-
-	T det = 0;
+	//Caso matriz 1x1
+	if(ncol_ == 1)
+		return getElement(0,0);
 	
-	std::cout << "Terminar implementação!" << std::endl;
+	//Caso matriz 2x2
+	if(ncol_ == 2)
+		return getElement(0,0) * getElement(1,1) - getElement(1,0) * getElement(0,1);
+	
+	//Caso matriz nxn, com n > 2
+	T det = 0;
+	for(std::size_t i = 0; i < ncol_; i++)
+		det = det + getElement(0, i) * pow(-1, i) * detRecursive(removeRow(0).removeCol(i));
 
 	return det;	
 }
 
+template <typename T>
+T matriz<T>::detRecursive(matriz<T> a){
+	//Caso matriz 2x2
+	if(a.ncol() == 2)
+		return a.getElement(0,0) * a.getElement(1,1) - a.getElement(1,0) * a.getElement(0,1);
+
+	//Caso matriz nxn, com n > 2
+	T det = 0;		
+	for(std::size_t i = 0; i < a.ncol(); i++)
+		det = det + a.getElement(0, i) * pow(-1, i) * detRecursive(a.removeRow(0).removeCol(i));
+
+	return det;
+}
 //-----------------	print -----------------//
 template <typename T>
 void matriz<T>::print(){
@@ -137,7 +251,7 @@ template <typename T>
 T& matriz<T>::operator()(std::size_t i, std::size_t j) { 
 	return values[i * ncol_ + j]; 	
 }
-  
+
 template <typename T>
 T matriz<T>::operator()(std::size_t i, std::size_t j) const { 
 	return values[i * ncol_ + j]; 
